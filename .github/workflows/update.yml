@@ -70,14 +70,7 @@ jobs:
             -e "s/^         intel: \".*\"\$/         intel: \"$INTEL\"/" \
             Casks/lumovi.rb
           git diff
-      - name: Installed, as people would
-        if: steps.latest.outputs.version
-        run: |
-          brew tap lumovi/tap "$GITHUB_WORKSPACE"
-          brew style lumovi/tap
-          brew audit --cask --online lumovi/tap/lumovi
-          brew install --cask lumovi/tap/lumovi
-          test -d /Applications/Lumovi.app
+      # Committed here first: a tap is what's committed.
       - name: Committed
         if: steps.latest.outputs.version
         env:
@@ -86,4 +79,15 @@ jobs:
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit --quiet --message "lumovi $VERSION" Casks/lumovi.rb
-          git push --quiet origin HEAD:main
+      - name: Installed, as people would
+        if: steps.latest.outputs.version
+        run: |
+          brew tap lumovi/tap "$GITHUB_WORKSPACE"
+          brew trust lumovi/tap
+          brew style lumovi/tap
+          brew audit --cask --online lumovi/tap/lumovi
+          brew install --cask lumovi/tap/lumovi
+          test -d /Applications/Lumovi.app
+      - name: Pushed
+        if: steps.latest.outputs.version
+        run: git push --quiet origin HEAD:main
