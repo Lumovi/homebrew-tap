@@ -1,0 +1,89 @@
+name: Update
+
+# Follows Lumovi's releases. When there's a newer one, the cask is updated to it: its
+# installers' checksums from the release's SHA256SUMS.txt, the installers themselves checked
+# against them and against GitHub's attestation that Lumovi's release workflow built them,
+# the cask installed on a Mac, and only then committed.
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: macos-latest
+    permissions:
+      # To commit the cask.
+      contents: write
+      # To keep this schedule from being paused when nothing else happens here for 60 days.
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Keep the schedule on
+        run: gh api --method PUT "repos/$GITHUB_REPOSITORY/actions/workflows/update.yml/enable"
+      - name: The latest release, if the cask isn't on it
+        id: latest
+        run: |
+          version=$(gh release view --repo Lumovi/Lumovi --json tagName --jq .tagName | sed 's/^v//')
+          current=$(sed -n 's/^  version "\(.*\)"$/\1/p' Casks/lumovi.rb)
+          if [ "$version" = "$current" ]; then
+            echo "The cask is on Lumovi $version already." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Its installers, checked
+        id: sums
+        if: steps.latest.outputs.version
+        env:
+          VERSION: ${{ steps.latest.outputs.version }}
+        run: |
+          mkdir "$RUNNER_TEMP/release" && cd "$RUNNER_TEMP/release"
+          gh release download "v$VERSION" --repo Lumovi/Lumovi \
+            --pattern SHA256SUMS.txt --pattern "Lumovi-$VERSION-mac-*.dmg"
+          for arch in arm64 x64; do
+            file="Lumovi-$VERSION-mac-$arch.dmg"
+            grep "  $file\$" SHA256SUMS.txt | shasum -a 256 -c -
+            gh attestation verify "$file" --repo Lumovi/Lumovi \
+              --signer-workflow Lumovi/Lumovi/.github/workflows/release.yml \
+              --source-ref refs/heads/main
+            echo "$arch=$(awk -v f="$file" '$2 == f { print $1 }' SHA256SUMS.txt)" >> "$GITHUB_OUTPUT"
+          done
+      - name: The cask, on it
+        if: steps.latest.outputs.version
+        env:
+          VERSION: ${{ steps.latest.outputs.version }}
+          ARM: ${{ steps.sums.outputs.arm64 }}
+          INTEL: ${{ steps.sums.outputs.x64 }}
+        run: |
+          sed -i '' \
+            -e "s/^  version \".*\"\$/  version \"$VERSION\"/" \
+            -e "s/^  sha256 arm:   \".*\",\$/  sha256 arm:   \"$ARM\",/" \
+            -e "s/^         intel: \".*\"\$/         intel: \"$INTEL\"/" \
+            Casks/lumovi.rb
+          git diff
+      - name: Installed, as people would
+        if: steps.latest.outputs.version
+        run: |
+          brew tap lumovi/tap "$GITHUB_WORKSPACE"
+          brew style lumovi/tap
+          brew audit --cask --online lumovi/tap/lumovi
+          brew install --cask lumovi/tap/lumovi
+          test -d /Applications/Lumovi.app
+      - name: Committed
+        if: steps.latest.outputs.version
+        env:
+          VERSION: ${{ steps.latest.outputs.version }}
+        run: |
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet --message "lumovi $VERSION" Casks/lumovi.rb
+          git push --quiet origin HEAD:main
