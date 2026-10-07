@@ -3,8 +3,11 @@
 [Lumovi](https://lumovi.dev), the Kubernetes dashboard, for macOS:
 
 ```sh
-brew install lumovi/tap/lumovi
+brew install --cask lumovi/tap/lumovi
 ```
+
+(Named in full, it's trusted as Homebrew 7 asks of a tap's casks: this one, and nothing else
+from here.)
 
 Lumovi updates itself once it's installed (Help → Check for Updates), so `brew upgrade`
 leaves it be unless you ask for it: `brew upgrade --greedy lumovi`.
