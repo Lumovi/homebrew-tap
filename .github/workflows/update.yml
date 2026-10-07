@@ -26,6 +26,8 @@ jobs:
       actions: write
     env:
       GH_TOKEN: ${{ github.token }}
+      # brew audit --online asks GitHub about the release: not as a runner's shared address.
+      HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Keep the schedule on
