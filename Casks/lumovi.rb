@@ -1,9 +1,9 @@
 cask "lumovi" do
   arch arm: "arm64", intel: "x64"
 
-  version "1.19.0"
-  sha256 arm:   "e4b483e9a128cb665ae81e5fa9ab89f6ed18377cab4c15a86c10e8042873017e",
-         intel: "ba8843684893223efaf615879b842d4f4faaee79c4333f8d8bacf021b6643fe4"
+  version "1.20.0"
+  sha256 arm:   "18334f053fba2573ed6634ecd133ae1e34fb3fd5e6a09476d816b912da0e2332",
+         intel: "2a131c8da2318eb2ddf3c3f8ccc56474feb1b367fcbcd737f086509abc74241c"
 
   url "https://github.com/Lumovi/Lumovi/releases/download/v#{version}/Lumovi-#{version}-mac-#{arch}.dmg"
   name "Lumovi"
